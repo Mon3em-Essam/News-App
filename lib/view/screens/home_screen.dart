@@ -1,39 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:news_app/core/api/result_api.dart';
-import 'package:news_app/data/api_manger.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:news_app/cubit/home_cubit.dart';
+import 'package:news_app/cubit/home_state.dart';
 import 'package:news_app/data/news_model.dart';
 import 'package:news_app/view/widgets/item_card_news.dart';
 
-class HomeScreen extends StatefulWidget {
+class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
 
   @override
-  State<HomeScreen> createState() => _HomeScreenState();
-}
-
-class _HomeScreenState extends State<HomeScreen> {
-  List<Article> articles = [];
-  bool isLoading = true;
-  String? error;
-  @override
-  void initState() {
-    super.initState();
-    getArtticles();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("News")),
-      body: isLoading
-          ? _loadingView()
-          : error != null
-          ? _errorView()
-          : _successView(),
+    return BlocProvider(
+      create: (context) => HomeCubit()..getArticles(),
+      child: Scaffold(
+        appBar: AppBar(title: Text("News")),
+        body: BlocBuilder<HomeCubit, HomeState>(
+          builder: (context, state) {
+            if (state is HomeLoading || state is HomeInitial) {
+              return _loadingView();
+            } else if (state is HomeError) {
+              return _errorView(state.error);
+            } else if (state is HomeSuccess) {
+              return _successView(state.articles);
+            }
+            return _loadingView();
+          },
+        ),
+      ),
     );
   }
 
-  Widget _successView() {
+  Widget _successView(List<Article> articles) {
     return ListView.builder(
       itemBuilder: (context, index) => ItemCardNews(article: articles[index]),
       itemCount: articles.length,
@@ -44,30 +41,16 @@ class _HomeScreenState extends State<HomeScreen> {
     return Center(child: CircularProgressIndicator());
   }
 
-  Widget _errorView() {
+  Widget _errorView(String error) {
     return Center(
       child: Text(
-        error!,
+        error,
         style: TextStyle(
           fontSize: 30,
           color: const Color.fromARGB(255, 189, 2, 2),
         ),
       ),
     );
-  }
-
-  void getArtticles() async {
-    final result = await ApiManager.getNews();
-    // articles = newsModel.articles ?? [];
-
-    switch (result) {
-      case Success<NewsModel>():
-        articles = result.data.articles ?? [];
-      case Error<NewsModel>():
-        error = result.error;
-    }
-    isLoading = false;
-    setState(() {});
   }
 }
 
